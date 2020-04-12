@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
@@ -9,21 +10,24 @@ import (
 	"time"
 
 	"github.com/bitly/go-nsq"
-
-	"gopkg.in/mgo.v2"
+	"github.com/go-redis/redis/v7"
 )
 
-var db *mgo.Session
+var db *redis.Client
 
 func dialdb() error {
 	var err error
-	log.Println("dialing to Mongo DB...")
-	db, err = mgo.Dial("localhost")
+	log.Println("dialing to Redis DB...")
+	db = redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
 	return err
 }
 func closedb() {
 	db.Close()
-	log.Println("Mongo DB is closed")
+	log.Println("Redis DB is closed")
 }
 
 type poll struct {
@@ -31,14 +35,20 @@ type poll struct {
 }
 
 func loadOptions() ([]string, error) {
-	var options []string
-	iter := db.DB("ballots").C("polls").Find(nil).Iter()
-	var p poll
-	for iter.Next(&p) {
-		options = append(options, p.Options...)
+	result, err := db.Get("polls").Bytes()
+	if err != nil {
+		log.Fatal(err)
 	}
-	iter.Close()
-	return options, iter.Err()
+	type St struct {
+		options []string
+		results int
+	}
+	var st *St
+	err = json.Unmarshal(result, st)
+	if err != nil {
+		log.Fatal((err))
+	}
+	return st.options, nil
 }
 
 func publishVotes(votes <-chan string) <-chan struct{} {

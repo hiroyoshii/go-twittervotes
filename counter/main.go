@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"os"
@@ -9,10 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
-
 	"github.com/bitly/go-nsq"
-	"gopkg.in/mgo.v2"
+	"github.com/go-redis/redis/v7"
 )
 
 var fatalErr error
@@ -30,15 +29,17 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-	db, err := mgo.Dial("localhost")
-	if err != nil {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	if client != nil {
 		return
 	}
 	defer func() {
-		db.Close()
+		client.Close()
 	}()
-	pollData := db.DB("bullets").C("polls")
-
 	var countsLock sync.Mutex
 	var counts map[string]int
 
@@ -68,13 +69,16 @@ func main() {
 		} else {
 			ok := true
 			for option, count := range counts {
-				sel := bson.M{"options": bson.M{"$in": []string{option}}}
-				up := bson.M{"$inc": bson.M{"results." + option: count}}
-				if _, err := pollData.UpdateAll(sel, up); err != nil {
-					ok = false
-
-					continue
+				// jsonに変換
+				type St struct {
+					options []string
+					results int
 				}
+				instance := St{options: []string{option}, results: count}
+				bytes, _ := json.Marshal(instance)
+
+				//jsonをredisに追加
+				client.Set("polls", bytes, 1*time.Second)
 				counts[option] = 0
 			}
 			if ok {

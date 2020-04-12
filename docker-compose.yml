@@ -2,26 +2,12 @@ version: '3.1'
 
 services:
 
-  mongo:
-    image: mongo
-    restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+  redis:
+    image: "redis:latest"
     ports:
-      - 27017:27017
+      - "6379:6379"
     volumes:
-      - ./db:/data/db
-      - ./configdb:/data/configdb
-
-  mongo-express:
-    image: mongo-express
-    restart: always
-    ports:
-      - 8081:8081
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      - "./data/reis:/data"
     
   nsqlookupd:
     image: nsqio/nsq:v0.3.8
@@ -43,3 +29,8 @@ services:
       - 4151:4151
     depends_on:
       - nsqlookupd
+  
+  twittervote:
+    image: hysii/go-twittervotes:1.0
+    command: >
+      go run /go/go-twittervotes/tiwittervotes
