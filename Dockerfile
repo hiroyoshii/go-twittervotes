@@ -4,5 +4,4 @@ RUN apt-get install git
 RUN git clone https://github.com/hiroyoshii/go-twittervotes.git
 WORKDIR /go/go-twittervotes
 RUN go mod download
-RUN cat go.mod
-RUN go run ./twittervotes
+RUN go build ./twittervotes
