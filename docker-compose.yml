@@ -1,0 +1,45 @@
+version: '3.1'
+
+services:
+
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - 27017:27017
+    volumes:
+      - ./db:/data/db
+      - ./configdb:/data/configdb
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+    
+  nsqlookupd:
+    image: nsqio/nsq:v0.3.8
+    command: >
+      /nsqlookupd
+      -broadcast-address localhost:4160
+    ports:
+      - 4160:4160
+      - 4161:4161
+
+  nsqd:
+    image: nsqio/nsq:v0.3.8
+    command: >
+      /nsqd
+      -broadcast-address localhost:4150
+      -lookupd-tcp-address nsqlookupd:4160
+    ports:
+      - 4150:4150
+      - 4151:4151
+    depends_on:
+      - nsqlookupd

@@ -1,0 +1,1 @@
+twitter - streaming api -> twitter votes -> nsg -> mongo db
